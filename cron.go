@@ -18,6 +18,7 @@ type Cron struct {
 	remove    chan EntryID
 	snapshot  chan chan []Entry
 	running   bool
+	immediate bool
 	logger    Logger
 	runningMu sync.Mutex
 	location  *time.Location
@@ -34,6 +35,19 @@ type ScheduleParser interface {
 // Job is an interface for submitted cron jobs.
 type Job interface {
 	Run()
+}
+
+type JobOption struct {
+	id EntryID
+}
+
+func (jo *JobOption) ID() EntryID {
+	return jo.id
+}
+
+type OptionJob interface {
+	Job
+	RunWithOption(*JobOption)
 }
 
 // Schedule describes a job's duty cycle.
@@ -62,6 +76,9 @@ type Entry struct {
 	// Prev is the last time this job was run, or the zero time if never.
 	Prev time.Time
 
+	// Activate determines whether to skip Job execution.
+	Activate bool
+
 	// WrappedJob is the thing to run when the Schedule is activated.
 	WrappedJob Job
 
@@ -73,25 +90,6 @@ type Entry struct {
 
 // Valid returns true if this is not the zero entry.
 func (e Entry) Valid() bool { return e.ID != 0 }
-
-// byTime is a wrapper for sorting the entry array by time
-// (with zero time at the end).
-type byTime []*Entry
-
-func (s byTime) Len() int      { return len(s) }
-func (s byTime) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s byTime) Less(i, j int) bool {
-	// Two zero times should return false.
-	// Otherwise, zero is "greater" than any other time.
-	// (To sort it at the end of the list.)
-	if s[i].Next.IsZero() {
-		return false
-	}
-	if s[j].Next.IsZero() {
-		return true
-	}
-	return s[i].Next.Before(s[j].Next)
-}
 
 // New returns a new Cron job runner, modified by the given options.
 //
@@ -132,14 +130,21 @@ func New(opts ...Option) *Cron {
 
 // FuncJob is a wrapper that turns a func() into a cron.Job
 type FuncJob func()
+type FuncOptionJob func(*JobOption)
 
-func (f FuncJob) Run() { f() }
+func (f FuncJob) Run()                             { f() }
+func (f FuncOptionJob) Run()                       { f(&JobOption{}) }
+func (f FuncOptionJob) RunWithOption(o *JobOption) { f(o) }
 
 // AddFunc adds a func to the Cron to be run on the given schedule.
 // The spec is parsed using the time zone of this Cron instance as the default.
 // An opaque ID is returned that can be used to later remove it.
 func (c *Cron) AddFunc(spec string, cmd func()) (EntryID, error) {
 	return c.AddJob(spec, FuncJob(cmd))
+}
+
+func (c *Cron) AddOptionFunc(spec string, cmd func(*JobOption)) (EntryID, error) {
+	return c.AddOptionJob(spec, FuncOptionJob(cmd))
 }
 
 // AddJob adds a Job to the Cron to be run on the given schedule.
@@ -151,6 +156,18 @@ func (c *Cron) AddJob(spec string, cmd Job) (EntryID, error) {
 		return 0, err
 	}
 	return c.Schedule(schedule, cmd), nil
+}
+
+func (c *Cron) AddOptionJob(spec string, cmd OptionJob) (EntryID, error) {
+	schedule, err := c.parser.Parse(spec)
+	if err != nil {
+		return 0, err
+	}
+	return c.ScheduleOptionJob(schedule, cmd), nil
+}
+
+func (c *Cron) ScheduleOptionJob(schedule Schedule, cmd OptionJob) EntryID {
+	return c.Schedule(schedule, cmd)
 }
 
 // Schedule adds a Job to the Cron to be run on the given schedule.
@@ -165,6 +182,7 @@ func (c *Cron) Schedule(schedule Schedule, cmd Job) EntryID {
 		WrappedJob: c.chain.Then(cmd),
 		Job:        cmd,
 		Next:       schedule.Next(time.Now()),
+		Activate:   true,
 	}
 	if !c.running {
 		heap.Push(&c.entries, entry)
@@ -212,6 +230,18 @@ func (c *Cron) Remove(id EntryID) {
 	}
 }
 
+// Activate an entry to enable it's execution.
+func (c *Cron) Activate(id EntryID) {
+	c.setEntryActivate(id, true)
+	c.logger.Info("activate", "entry", id)
+}
+
+// Deactivate an entry to prevent it's execution.
+func (c *Cron) Deactivate(id EntryID) {
+	c.setEntryActivate(id, false)
+	c.logger.Info("deactivate", "entry", id)
+}
+
 // Start the cron scheduler in its own goroutine, or no-op if already started.
 func (c *Cron) Start() {
 	c.runningMu.Lock()
@@ -245,7 +275,11 @@ func (c *Cron) run() {
 	sortedEntries := new(EntryHeap)
 	for len(c.entries) > 0 {
 		entry := heap.Pop(&c.entries).(*Entry)
-		entry.Next = entry.Schedule.Next(now)
+		if c.immediate {
+			entry.Next = now
+		} else {
+			entry.Next = entry.Schedule.Next(now)
+		}
 		heap.Push(sortedEntries, entry)
 		c.logger.Info("schedule", "now", now, "entry", entry.ID, "next", entry.Next)
 	}
@@ -274,7 +308,7 @@ func (c *Cron) run() {
 				// Run every entry whose next time was less than now
 				for {
 					e := c.entries.Peek()
-					if e.Next.After(now) || e.Next.IsZero() {
+					if e.Next.After(now) || e.Next.IsZero() || !e.Activate {
 						break
 					}
 					e = heap.Pop(&c.entries).(*Entry)
@@ -318,13 +352,20 @@ func (c *Cron) startJob(j Job) {
 	c.jobWaiter.Add(1)
 	go func() {
 		defer c.jobWaiter.Done()
-		j.Run()
+		switch j := j.(type) {
+		case OptionJob:
+			j.RunWithOption(&JobOption{
+				c.nextID,
+			})
+		case Job:
+			j.Run()
+		}
 	}()
 }
 
 // now returns current time in c location
 func (c *Cron) now() time.Time {
-	return time.Now().In(c.location)
+	return time.Now().Round(0).In(c.location)
 }
 
 // Stop stops the cron scheduler if it is running; otherwise it does nothing.
@@ -357,6 +398,15 @@ func (c *Cron) removeEntry(id EntryID) {
 	for idx, e := range c.entries {
 		if e.ID == id {
 			heap.Remove(&c.entries, idx)
+			return
+		}
+	}
+}
+
+func (c *Cron) setEntryActivate(id EntryID, activate bool) {
+	for _, e := range c.entries {
+		if e.ID == id {
+			e.Activate = activate
 			return
 		}
 	}

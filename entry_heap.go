@@ -1,6 +1,5 @@
 package cron
 
-
 type EntryHeap []*Entry
 
 func (h *EntryHeap) Less(i, j int) bool {
@@ -36,4 +35,3 @@ func (h *EntryHeap) Peek() *Entry {
 	}
 	return (*h)[0]
 }
-

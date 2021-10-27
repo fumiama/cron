@@ -1,9 +1,11 @@
-[![GoDoc](http://godoc.org/github.com/robfig/cron?status.png)](http://godoc.org/github.com/robfig/cron)
-[![Build Status](https://travis-ci.org/robfig/cron.svg?branch=master)](https://travis-ci.org/robfig/cron)
+[![GoDoc](http://godoc.org/github.com/fumiama/cron?status.png)](http://godoc.org/github.com/fumiama/cron)
+[![Build Status](https://travis-ci.org/fumiama/cron.svg?branch=master)](https://travis-ci.org/fumiama/cron)
 
 # cron
 
-从robfig/cron Fork出来的，不过这个cron框架经过使用后发现，大量任务会耗费很多CPU在Sort全部的任务上，每次任务执行完之后就会修改next执行时间，然后数组使用快排进行排序，时间复杂度O(nlogn)，我修改为min-heap的方式，每次添加任务的时候通过堆的属性进行up和down调整，每次添加任务时间复杂度O(logn)，经过验证线上CPU使用降低4~5倍。
+> 从 tovenja/cron fork 来的，增加了 robfig/cron 的一些未合并的 PR
+
+从 robfig/cron Fork出来的，不过这个cron框架经过使用后发现，大量任务会耗费很多CPU在Sort全部的任务上，每次任务执行完之后就会修改next执行时间，然后数组使用快排进行排序，时间复杂度O(nlogn)，我修改为min-heap的方式，每次添加任务的时候通过堆的属性进行up和down调整，每次添加任务时间复杂度O(logn)，经过验证线上CPU使用降低4~5倍。
 
 From robfig/cron Fork, but after using it, I found that a large number of tasks will consume a lot of CPU on all tasks of Sort. After each task executed, the next execution time will be modified, and then the array will be sorted using quick-sort, which is cost O(nlogn), I modified it to the min-heap method. When adding a task, the up and down adjustments are made through the properties of the heap. Each time the task added, the time cost is O(logn). After product env verification, the online CPU usage is reduced by 4~5 times.
 
@@ -11,16 +13,16 @@ Cron V3 has been released!
 
 To download the specific tagged release, run:
 ```bash
-go get github.com/tovenja/cron/v3@v3.0.0
+go get github.com/fumiama/cron
 ```
 Import it in your program as:
 ```go
-import "github.com/tovenja/cron/v3"
+import "github.com/fumiama/cron"
 ```
 It requires Go 1.11 or later due to usage of Go Modules.
 
 Refer to the documentation here:
-http://godoc.org/github.com/robfig/cron
+http://godoc.org/github.com/fumiama/cron
 
 The rest of this document describes the the advances in v3 and a list of
 breaking changes for users that wish to upgrade from an earlier version.
@@ -37,7 +39,7 @@ the timezone support, and fixes a number of bugs.
 New features:
 
 - Support for Go modules. Callers must now import this library as
-  `github.com/tovenja/cron/v3`, instead of `gopkg.in/...`
+  `github.com/fumiama/cron`, instead of `gopkg.in/...`
 
 - Fixed bugs:
   - 0f01e6b parser: fix combining of Dow and Dom (#70)

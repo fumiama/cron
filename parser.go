@@ -95,6 +95,9 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 	if strings.HasPrefix(spec, "TZ=") || strings.HasPrefix(spec, "CRON_TZ=") {
 		var err error
 		i := strings.Index(spec, " ")
+		if i == -1 {
+			return nil, fmt.Errorf("provided no location %s", spec)
+		}
 		eq := strings.Index(spec, "=")
 		if loc, err = time.LoadLocation(spec[eq+1 : i]); err != nil {
 			return nil, fmt.Errorf("provided bad location %s: %v", spec[eq+1:i], err)
@@ -118,6 +121,11 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 	fields, err = normalizeFields(fields, p.options)
 	if err != nil {
 		return nil, err
+	}
+
+	if fields[3] == "L" {
+		now := time.Now().In(loc)
+		fields[3] = strconv.Itoa(ldom(now))
 	}
 
 	field := func(field string, r bounds) uint64 {
@@ -149,6 +157,7 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 		Month:    month,
 		Dow:      dayofweek,
 		Location: loc,
+		CronExpr: spec,
 	}, nil
 }
 
@@ -373,6 +382,7 @@ func parseDescriptor(descriptor string, loc *time.Location) (Schedule, error) {
 			Month:    1 << months.min,
 			Dow:      all(dow),
 			Location: loc,
+			CronExpr: descriptor,
 		}, nil
 
 	case "@monthly":
@@ -384,6 +394,7 @@ func parseDescriptor(descriptor string, loc *time.Location) (Schedule, error) {
 			Month:    all(months),
 			Dow:      all(dow),
 			Location: loc,
+			CronExpr: descriptor,
 		}, nil
 
 	case "@weekly":
@@ -395,6 +406,7 @@ func parseDescriptor(descriptor string, loc *time.Location) (Schedule, error) {
 			Month:    all(months),
 			Dow:      1 << dow.min,
 			Location: loc,
+			CronExpr: descriptor,
 		}, nil
 
 	case "@daily", "@midnight":
@@ -406,6 +418,7 @@ func parseDescriptor(descriptor string, loc *time.Location) (Schedule, error) {
 			Month:    all(months),
 			Dow:      all(dow),
 			Location: loc,
+			CronExpr: descriptor,
 		}, nil
 
 	case "@hourly":
@@ -417,6 +430,7 @@ func parseDescriptor(descriptor string, loc *time.Location) (Schedule, error) {
 			Month:    all(months),
 			Dow:      all(dow),
 			Location: loc,
+			CronExpr: descriptor,
 		}, nil
 
 	}
