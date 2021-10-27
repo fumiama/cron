@@ -5,10 +5,12 @@
 
 > 从 tovenja/cron fork 来的，增加了 robfig/cron 的一些未合并的 PR
 
+## tovenja/cron 简介
 从 robfig/cron Fork出来的，不过这个cron框架经过使用后发现，大量任务会耗费很多CPU在Sort全部的任务上，每次任务执行完之后就会修改next执行时间，然后数组使用快排进行排序，时间复杂度O(nlogn)，我修改为min-heap的方式，每次添加任务的时候通过堆的属性进行up和down调整，每次添加任务时间复杂度O(logn)，经过验证线上CPU使用降低4~5倍。
 
 From robfig/cron Fork, but after using it, I found that a large number of tasks will consume a lot of CPU on all tasks of Sort. After each task executed, the next execution time will be modified, and then the array will be sorted using quick-sort, which is cost O(nlogn), I modified it to the min-heap method. When adding a task, the up and down adjustments are made through the properties of the heap. Each time the task added, the time cost is O(logn). After product env verification, the online CPU usage is reduced by 4~5 times.
 
+## robfig/cron 简介
 Cron V3 has been released!
 
 To download the specific tagged release, run:
