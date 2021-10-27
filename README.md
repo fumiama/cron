@@ -1,5 +1,4 @@
 [![GoDoc](http://godoc.org/github.com/fumiama/cron?status.png)](http://godoc.org/github.com/fumiama/cron)
-[![Build Status](https://travis-ci.org/fumiama/cron.svg?branch=master)](https://travis-ci.org/fumiama/cron)
 
 # cron
 
