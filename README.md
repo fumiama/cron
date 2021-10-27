@@ -15,7 +15,7 @@ Cron V3 has been released!
 
 To download the specific tagged release, run:
 ```bash
-go get github.com/fumiama/cron
+go get github.com/fumiama/cron/v3
 ```
 Import it in your program as:
 ```go
@@ -29,7 +29,7 @@ http://godoc.org/github.com/fumiama/cron
 The rest of this document describes the the advances in v3 and a list of
 breaking changes for users that wish to upgrade from an earlier version.
 
-## Upgrading to v3 (June 2019)
+### Upgrading to v3 (June 2019)
 
 cron v3 is a major upgrade to the library that addresses all outstanding bugs,
 feature requests, and rough edges. It is based on a merge of master which
@@ -115,7 +115,7 @@ cron.New(
   cron.WithLogger(cron.VerbosePrintfLogger(logger)))
 ```
 
-### Background - Cron spec format
+#### Background - Cron spec format
 
 There are two cron spec formats in common usage:
 
