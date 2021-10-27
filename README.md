@@ -15,7 +15,7 @@ Cron V3 has been released!
 
 To download the specific tagged release, run:
 ```bash
-go get github.com/fumiama/cron/v3
+go get github.com/fumiama/cron
 ```
 Import it in your program as:
 ```go
